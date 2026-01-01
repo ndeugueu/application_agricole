@@ -1,0 +1,333 @@
+version: '3.9'
+
+services:
+  # ============================================
+  # Infrastructure Services
+  # ============================================
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: agricole_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_MULTIPLE_DATABASES: identity_db,farm_db,inventory_db,sales_db,accounting_db,reporting_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    networks:
+      - agricole_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: agricole_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    ports:
+      - "${RABBITMQ_PORT}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT}:15672"
+    networks:
+      - agricole_network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: agricole_redis
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT}:6379"
+    networks:
+      - agricole_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: agricole_minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "${MINIO_PORT}:9000"
+      - "${MINIO_CONSOLE_PORT}:9001"
+    networks:
+      - agricole_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # Microservices
+  # ============================================
+
+  identity-service:
+    build:
+      context: .
+      dockerfile: ./services/identity/Dockerfile
+    container_name: agricole_identity_service
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/identity_db
+      - RABBITMQ_URL=amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672/
+      - REDIS_URL=redis://${REDIS_PASSWORD}@redis:6379/0
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - JWT_ALGORITHM=${JWT_ALGORITHM}
+      - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=${JWT_ACCESS_TOKEN_EXPIRE_MINUTES}
+      - JWT_REFRESH_TOKEN_EXPIRE_DAYS=${JWT_REFRESH_TOKEN_EXPIRE_DAYS}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "${IDENTITY_SERVICE_PORT}:8000"
+    networks:
+      - agricole_network
+    restart: unless-stopped
+
+  farm-service:
+    build:
+      context: .
+      dockerfile: ./services/farm/Dockerfile
+    container_name: agricole_farm_service
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/farm_db
+      - RABBITMQ_URL=amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672/
+      - REDIS_URL=redis://${REDIS_PASSWORD}@redis:6379/1
+      - IDENTITY_SERVICE_URL=http://identity-service:8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      identity-service:
+        condition: service_started
+    ports:
+      - "${FARM_SERVICE_PORT}:8000"
+    networks:
+      - agricole_network
+    restart: unless-stopped
+
+  inventory-service:
+    build:
+      context: .
+      dockerfile: ./services/inventory/Dockerfile
+    container_name: agricole_inventory_service
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/inventory_db
+      - RABBITMQ_URL=amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672/
+      - REDIS_URL=redis://${REDIS_PASSWORD}@redis:6379/2
+      - IDENTITY_SERVICE_URL=http://identity-service:8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      identity-service:
+        condition: service_started
+    ports:
+      - "${INVENTORY_SERVICE_PORT}:8000"
+    networks:
+      - agricole_network
+    restart: unless-stopped
+
+  sales-service:
+    build:
+      context: .
+      dockerfile: ./services/sales/Dockerfile
+    container_name: agricole_sales_service
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/sales_db
+      - RABBITMQ_URL=amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672/
+      - REDIS_URL=redis://${REDIS_PASSWORD}@redis:6379/3
+      - IDENTITY_SERVICE_URL=http://identity-service:8000
+      - INVENTORY_SERVICE_URL=http://inventory-service:8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      identity-service:
+        condition: service_started
+      inventory-service:
+        condition: service_started
+    ports:
+      - "${SALES_SERVICE_PORT}:8000"
+    networks:
+      - agricole_network
+    restart: unless-stopped
+
+  accounting-service:
+    build:
+      context: .
+      dockerfile: ./services/accounting/Dockerfile
+    container_name: agricole_accounting_service
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/accounting_db
+      - RABBITMQ_URL=amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672/
+      - REDIS_URL=redis://${REDIS_PASSWORD}@redis:6379/4
+      - IDENTITY_SERVICE_URL=http://identity-service:8000
+      - TVA_RATE=${TVA_RATE}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      identity-service:
+        condition: service_started
+    ports:
+      - "${ACCOUNTING_SERVICE_PORT}:8000"
+    networks:
+      - agricole_network
+    restart: unless-stopped
+
+  reporting-service:
+    build:
+      context: .
+      dockerfile: ./services/reporting/Dockerfile
+    container_name: agricole_reporting_service
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/reporting_db
+      - RABBITMQ_URL=amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672/
+      - REDIS_URL=redis://${REDIS_PASSWORD}@redis:6379/5
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
+      - IDENTITY_SERVICE_URL=http://identity-service:8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      identity-service:
+        condition: service_started
+    ports:
+      - "${REPORTING_SERVICE_PORT}:8000"
+    networks:
+      - agricole_network
+    restart: unless-stopped
+
+  bff-mobile:
+    build:
+      context: .
+      dockerfile: ./services/bff-mobile/Dockerfile
+    container_name: agricole_bff_mobile
+    environment:
+      - REDIS_URL=redis://${REDIS_PASSWORD}@redis:6379/10
+      - IDENTITY_SERVICE_URL=http://identity-service:8000
+      - FARM_SERVICE_URL=http://farm-service:8000
+      - INVENTORY_SERVICE_URL=http://inventory-service:8000
+      - SALES_SERVICE_URL=http://sales-service:8000
+      - ACCOUNTING_SERVICE_URL=http://accounting-service:8000
+    depends_on:
+      - redis
+      - identity-service
+      - farm-service
+      - inventory-service
+      - sales-service
+    ports:
+      - "${BFF_MOBILE_PORT}:8000"
+    networks:
+      - agricole_network
+    restart: unless-stopped
+
+  bff-web:
+    build:
+      context: .
+      dockerfile: ./services/bff-web/Dockerfile
+    container_name: agricole_bff_web
+    environment:
+      - REDIS_URL=redis://${REDIS_PASSWORD}@redis:6379/11
+      - IDENTITY_SERVICE_URL=http://identity-service:8000
+      - FARM_SERVICE_URL=http://farm-service:8000
+      - INVENTORY_SERVICE_URL=http://inventory-service:8000
+      - SALES_SERVICE_URL=http://sales-service:8000
+      - ACCOUNTING_SERVICE_URL=http://accounting-service:8000
+      - REPORTING_SERVICE_URL=http://reporting-service:8000
+    depends_on:
+      - redis
+      - identity-service
+      - farm-service
+      - inventory-service
+      - sales-service
+      - reporting-service
+    ports:
+      - "${BFF_WEB_PORT}:8000"
+    networks:
+      - agricole_network
+    restart: unless-stopped
+
+  # ============================================
+  # Frontend
+  # ============================================
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: agricole_frontend
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost
+    depends_on:
+      - gateway
+    ports:
+      - "3001:3000"
+    networks:
+      - agricole_network
+    restart: unless-stopped
+
+  # ============================================
+  # API Gateway
+  # ============================================
+
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: agricole_gateway
+    ports:
+      - "${GATEWAY_PORT}:80"
+    depends_on:
+      - identity-service
+      - bff-mobile
+      - bff-web
+    networks:
+      - agricole_network
+    restart: unless-stopped
+
+networks:
+  agricole_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+  redis_data:
+  minio_data:
