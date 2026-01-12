@@ -25,10 +25,19 @@ class TimestampMixin:
 
 def get_database_url(default_db: str = "agricole_db") -> str:
     """Get database URL from environment variables"""
-    return os.getenv(
-        "DATABASE_URL",
-        f"postgresql://agricole_user:agricole_secure_password_2025@localhost:5432/{default_db}"
-    )
+    db_url = os.getenv("DATABASE_URL")
+    if db_url:
+        return db_url
+
+    user = os.getenv("POSTGRES_USER")
+    password = os.getenv("POSTGRES_PASSWORD")
+    host = os.getenv("POSTGRES_HOST", "localhost")
+    port = os.getenv("POSTGRES_PORT", "5432")
+
+    if not user or not password:
+        raise ValueError("DATABASE_URL or POSTGRES_USER/POSTGRES_PASSWORD must be set")
+
+    return f"postgresql://{user}:{password}@{host}:{port}/{default_db}"
 
 
 def create_db_engine(database_url: str = None):

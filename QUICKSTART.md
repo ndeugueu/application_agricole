@@ -53,7 +53,7 @@ Réponse attendue : `healthy`
 ```bash
 curl -X POST http://localhost/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "Admin@2025"}'
+  -d '{"username": "admin", "password": "ADMIN_PASSWORD"}'
 ```
 
 Si vous recevez un `access_token`, tout fonctionne! 🎉
@@ -66,7 +66,7 @@ Si vous recevez un `access_token`, tout fonctionne! 🎉
 # Connexion
 curl -X POST http://localhost/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "Admin@2025"}' \
+  -d '{"username": "admin", "password": "ADMIN_PASSWORD"}' \
   > login_response.json
 
 # Extraire le token (sur Linux/Mac)
@@ -250,7 +250,7 @@ docker-compose logs postgres
 ```bash
 curl -X POST http://localhost/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "Admin@2025"}'
+  -d '{"username": "admin", "password": "ADMIN_PASSWORD"}'
 ```
 
 ### Port déjà utilisé
@@ -278,7 +278,7 @@ Pour aller plus loin, consultez :
 - [ ] `docker-compose up --build -d` exécuté
 - [ ] Tous les services affichent "Up" dans `docker-compose ps`
 - [ ] `curl http://localhost/health` retourne "healthy"
-- [ ] Connexion réussie avec admin/Admin@2025
+- [ ] Connexion réussie avec admin/ADMIN_PASSWORD
 - [ ] Première ferme créée
 - [ ] Premier produit créé
 - [ ] Premier mouvement de stock enregistré

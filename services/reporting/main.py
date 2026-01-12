@@ -3,7 +3,6 @@ Reporting & Export Service
 Generates PDF and Excel reports with MinIO storage
 """
 from fastapi import FastAPI, Depends, HTTPException, Query, BackgroundTasks
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -41,32 +40,37 @@ logger = configure_logging("reporting-service")
 DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_db_engine(DATABASE_URL)
 SessionFactory = get_session_factory(engine)
-Base.metadata.create_all(bind=engine)
+if os.getenv("AUTO_CREATE_DB", "true").lower() == "true":
+    Base.metadata.create_all(bind=engine)
 
 RABBITMQ_URL = os.getenv("RABBITMQ_URL")
 event_publisher = EventPublisher(RABBITMQ_URL, "reporting-service") if RABBITMQ_URL else None
 
 # MinIO configuration
 MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "minio:9000")
-MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
-MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
+MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY") or os.getenv("MINIO_ROOT_USER")
+MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY") or os.getenv("MINIO_ROOT_PASSWORD")
 MINIO_BUCKET = os.getenv("MINIO_BUCKET", "reports")
 MINIO_SECURE = os.getenv("MINIO_SECURE", "false").lower() == "true"
 
 # Initialize MinIO client
-try:
-    minio_client = Minio(
-        MINIO_ENDPOINT,
-        access_key=MINIO_ACCESS_KEY,
-        secret_key=MINIO_SECRET_KEY,
-        secure=MINIO_SECURE
-    )
-    # Create bucket if not exists
-    if not minio_client.bucket_exists(MINIO_BUCKET):
-        minio_client.make_bucket(MINIO_BUCKET)
-        logger.info(f"Created MinIO bucket: {MINIO_BUCKET}")
-except Exception as e:
-    logger.warning(f"MinIO initialization failed: {e}. Reports will not be stored.")
+if MINIO_ACCESS_KEY and MINIO_SECRET_KEY:
+    try:
+        minio_client = Minio(
+            MINIO_ENDPOINT,
+            access_key=MINIO_ACCESS_KEY,
+            secret_key=MINIO_SECRET_KEY,
+            secure=MINIO_SECURE
+        )
+        # Create bucket if not exists
+        if not minio_client.bucket_exists(MINIO_BUCKET):
+            minio_client.make_bucket(MINIO_BUCKET)
+            logger.info(f"Created MinIO bucket: {MINIO_BUCKET}")
+    except Exception as e:
+        logger.warning(f"MinIO initialization failed: {e}. Reports will not be stored.")
+        minio_client = None
+else:
+    logger.warning("MinIO credentials not set; reports will not be stored.")
     minio_client = None
 
 # Service URLs for data fetching
@@ -78,14 +82,6 @@ app = FastAPI(
     title="Reporting & Export Service",
     description="Generate PDF and Excel reports with MinIO storage",
     version="1.0.0"
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
 )
 
 

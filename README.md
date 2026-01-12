@@ -33,7 +33,7 @@ Application web et mobile pour la digitalisation de la gestion agricole et d'él
 - **API Gateway** (port 80) : Point d'entrée unique avec Nginx (rate limiting, routing)
 
 ### Infrastructure
-- **PostgreSQL** (port 5433) : 6 bases de données (une par service)
+- **PostgreSQL** (port 5434) : 6 bases de données (une par service)
 - **RabbitMQ** (ports 5672, 15672) : Message broker pour événements asynchrones (pattern Saga)
 - **Redis** (port 6380) : Cache et sessions
 - **MinIO** (ports 9000, 9001) : Stockage S3-compatible pour les exports PDF/Excel
@@ -43,7 +43,7 @@ Application web et mobile pour la digitalisation de la gestion agricole et d'él
 ### Prérequis
 - Docker et Docker Compose installés
 - 8 GB RAM minimum
-- Ports disponibles : 80, 5433, 5672, 6380, 9000, 9001, 15672, 8001-8006, 8010-8011
+- Ports disponibles : 80, 5434, 5672, 6380, 9000, 9001, 15672, 8001-8006, 8010-8011
 
 ### Installation rapide
 
@@ -100,7 +100,7 @@ http://localhost:3001
 
 **Identifiants par défaut:**
 - Username: `admin`
-- Password: `Admin@2025`
+- Password: `ADMIN_PASSWORD`
 
 **Pages disponibles:**
 - `/` - Redirection automatique
@@ -127,7 +127,7 @@ http://localhost/docs
 
 Un utilisateur admin est créé automatiquement au démarrage du service Identity :
 - **Username** : `admin`
-- **Password** : `Admin@2025`
+- **Password** : `ADMIN_PASSWORD`
 - **Rôle** : Administrateur (accès complet)
 
 ### Rôles disponibles
@@ -147,7 +147,7 @@ curl -X POST http://localhost/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "username": "admin",
-    "password": "Admin@2025"
+    "password": "ADMIN_PASSWORD"
   }'
 ```
 
@@ -383,7 +383,7 @@ docker-compose logs
 
 # Vérifier que les ports ne sont pas occupés
 netstat -ano | findstr :80
-netstat -ano | findstr :5433
+netstat -ano | findstr :5434
 
 # Nettoyer et redémarrer
 docker-compose down -v

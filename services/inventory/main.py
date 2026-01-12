@@ -3,7 +3,6 @@ Inventory Service
 Stock management with append-only movements pattern
 """
 from fastapi import FastAPI, Depends, HTTPException, Query
-from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from decimal import Decimal
@@ -29,20 +28,13 @@ logger = configure_logging("inventory-service")
 DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_db_engine(DATABASE_URL)
 SessionFactory = get_session_factory(engine)
-Base.metadata.create_all(bind=engine)
+if os.getenv("AUTO_CREATE_DB", "true").lower() == "true":
+    Base.metadata.create_all(bind=engine)
 
 RABBITMQ_URL = os.getenv("RABBITMQ_URL")
 event_publisher = EventPublisher(RABBITMQ_URL, "inventory-service") if RABBITMQ_URL else None
 
 app = FastAPI(title="Inventory Service", version="1.0.0")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 
 def get_db():

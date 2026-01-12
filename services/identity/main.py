@@ -3,7 +3,6 @@ Identity & Access Service
 FastAPI application for authentication and authorization
 """
 from fastapi import FastAPI, Depends, HTTPException, status
-from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from typing import List
@@ -36,8 +35,9 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_db_engine(DATABASE_URL)
 SessionFactory = get_session_factory(engine)
 
-# Create tables
-Base.metadata.create_all(bind=engine)
+# Create tables (dev only; prefer migrations in prod)
+if os.getenv("AUTO_CREATE_DB", "true").lower() == "true":
+    Base.metadata.create_all(bind=engine)
 
 # Event publisher
 RABBITMQ_URL = os.getenv("RABBITMQ_URL")
@@ -48,15 +48,6 @@ app = FastAPI(
     title="Identity & Access Service",
     description="Authentication and authorization microservice",
     version="1.0.0"
-)
-
-# CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
 )
 
 
@@ -88,6 +79,11 @@ async def shutdown_event():
 
 def create_default_data(db: Session):
     """Create default roles and admin user"""
+    admin_username = os.getenv("ADMIN_USERNAME", "admin")
+    admin_password = os.getenv("ADMIN_PASSWORD")
+    admin_email = os.getenv("ADMIN_EMAIL", "admin@agricole.com")
+    admin_full_name = os.getenv("ADMIN_FULL_NAME", "Administrateur Systeme")
+
     # Create default permissions
     default_permissions = [
         {"name": "farm:read", "resource": "farm", "action": "read", "description": "Read farm data"},
@@ -145,22 +141,25 @@ def create_default_data(db: Session):
         roles[role_name] = role
 
     # Create default admin user
-    admin = db.query(models.User).filter_by(username="admin").first()
+    admin = db.query(models.User).filter_by(username=admin_username).first()
     if not admin:
-        admin = models.User(
-            username="admin",
-            email="admin@agricole.com",
-            hashed_password=get_password_hash("Admin@2025"),
-            full_name="Administrateur Systeme",
-            is_active=True,
-            is_superuser=True
-        )
-        admin.roles = [roles[Roles.ADMIN]]
-        db.add(admin)
-        logger.info("Default admin user created: username=admin, password=Admin@2025")
+        if not admin_password:
+            logger.warning("ADMIN_PASSWORD not set; skipping default admin user creation.")
+        else:
+            admin = models.User(
+                username=admin_username,
+                email=admin_email,
+                hashed_password=get_password_hash(admin_password),
+                full_name=admin_full_name,
+                is_active=True,
+                is_superuser=True
+            )
+            admin.roles = [roles[Roles.ADMIN]]
+            db.add(admin)
+            logger.info("Default admin user created", username=admin_username)
     else:
         if admin.email.endswith(".local"):
-            admin.email = "admin@agricole.com"
+            admin.email = admin_email
 
 
     db.commit()
@@ -213,10 +212,13 @@ async def login(login_data: schemas.LoginRequest, db: Session = Depends(get_db))
 
     # Publish event
     if event_publisher:
-        event_publisher.publish_event(
-            "user.logged_in",
-            {"user_id": str(user.id), "username": user.username}
-        )
+        try:
+            event_publisher.publish_event(
+                "user.logged_in",
+                {"user_id": str(user.id), "username": user.username}
+            )
+        except Exception as exc:
+            logger.warning("Event publish failed", error=str(exc), event="user.logged_in")
 
     logger.info("User logged in", user_id=str(user.id), username=user.username)
 
@@ -325,10 +327,13 @@ async def create_user(
 
     # Publish event
     if event_publisher:
-        event_publisher.publish_event(
-            "user.created",
-            {"user_id": str(user.id), "username": user.username, "email": user.email}
-        )
+        try:
+            event_publisher.publish_event(
+                "user.created",
+                {"user_id": str(user.id), "username": user.username, "email": user.email}
+            )
+        except Exception as exc:
+            logger.warning("Event publish failed", error=str(exc), event="user.created")
 
     logger.info("User created", user_id=str(user.id), username=user.username)
     return schemas.UserResponse.model_validate(user)

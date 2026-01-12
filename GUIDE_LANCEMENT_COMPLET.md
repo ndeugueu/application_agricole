@@ -79,7 +79,7 @@ http://localhost:3001
 
 **Identifiants par défaut:**
 - Username: `admin`
-- Password: `Admin@2025`
+- Password: `ADMIN_PASSWORD`
 
 ## 📱 Interfaces disponibles
 
@@ -122,7 +122,7 @@ Password: minio_secure_password_2025
 **PostgreSQL**
 ```
 Host: localhost
-Port: 5433
+Port: 5434
 Username: agricole_user
 Password: agricole_secure_password_2025
 Databases: identity_db, farm_db, inventory_db, sales_db, accounting_db, reporting_db
@@ -136,7 +136,7 @@ Databases: identity_db, farm_db, inventory_db, sales_db, accounting_db, reportin
 2. Vous serez redirigé vers `/login`
 3. Entrer les identifiants:
    - Username: `admin`
-   - Password: `Admin@2025`
+   - Password: `ADMIN_PASSWORD`
 4. Cliquer sur "Se connecter"
 5. Vous serez redirigé vers le dashboard
 
@@ -255,7 +255,7 @@ docker-compose restart frontend gateway
 
 ### Erreur "port already allocated" pour PostgreSQL
 
-Le port 5433 est déjà configuré dans `.env`. Si vous avez toujours l'erreur:
+Le port 5434 est déjà configuré dans `.env`. Si vous avez toujours l'erreur:
 
 ```bash
 # Arrêter le service qui utilise le port
@@ -308,7 +308,7 @@ docker-compose exec postgres psql -U agricole_user -d identity_db -c "SELECT COU
 
 3. Utiliser les bons identifiants:
    - Username: `admin` (pas Admin ou ADMIN)
-   - Password: `Admin@2025`
+   - Password: `ADMIN_PASSWORD`
 
 ## 📊 Monitoring
 
@@ -366,13 +366,13 @@ Les mots de passe par défaut sont dans `.env`. **Ne pas utiliser en production!
          ▼              ▼              ▼
     ┌────────┐    ┌──────────┐   ┌────────┐
     │Postgres│    │RabbitMQ  │   │ Redis  │
-    │  :5433 │    │:5672/15672   │ :6380  │
+    │  :5434 │    │:5672/15672   │ :6380  │
     └────────┘    └──────────┘   └────────┘
 ```
 
 ## 🎓 Premiers pas recommandés
 
-1. **Se connecter** sur http://localhost avec admin/Admin@2025
+1. **Se connecter** sur http://localhost avec admin/ADMIN_PASSWORD
 2. **Explorer le dashboard** pour voir les graphiques
 3. **Créer une exploitation** dans /farms
 4. **Ajouter des produits** dans /inventory
@@ -393,7 +393,7 @@ Pour signaler un bug ou demander de l'aide:
 - [ ] Attendu 2-3 minutes
 - [ ] Tous les conteneurs sont "running"
 - [ ] Ouvert http://localhost
-- [ ] Connecté avec admin/Admin@2025
+- [ ] Connecté avec admin/ADMIN_PASSWORD
 - [ ] Dashboard affiché correctement
 
 **Bon usage! 🚀**

@@ -4,7 +4,6 @@ Aggregates data from multiple services for web dashboards
 Optimized for admin/back-office use
 """
 from fastapi import FastAPI, Depends, HTTPException, Security
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
@@ -32,14 +31,6 @@ ACCOUNTING_SERVICE_URL = os.getenv("ACCOUNTING_SERVICE_URL", "http://localhost:8
 REPORTING_SERVICE_URL = os.getenv("REPORTING_SERVICE_URL", "http://localhost:8006")
 
 app = FastAPI(title="BFF Web", version="1.0.0")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 
 # ============================================

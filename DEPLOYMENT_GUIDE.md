@@ -222,7 +222,7 @@ Si les ports par défaut sont occupés :
 ```env
 # Dans .env
 GATEWAY_PORT=8080          # Au lieu de 80
-POSTGRES_PORT=5433         # Au lieu de 5432
+POSTGRES_PORT=5434         # Au lieu de 5432
 RABBITMQ_PORT=5673         # Au lieu de 5672
 RABBITMQ_MANAGEMENT_PORT=15673  # Au lieu de 15672
 ```

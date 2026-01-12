@@ -4,7 +4,6 @@ Aggregates data from multiple services for mobile screens
 Optimized for mobile network (1 endpoint = 1 screen)
 """
 from fastapi import FastAPI, Depends, HTTPException, Security
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
@@ -30,14 +29,6 @@ INVENTORY_SERVICE_URL = os.getenv("INVENTORY_SERVICE_URL", "http://localhost:800
 SALES_SERVICE_URL = os.getenv("SALES_SERVICE_URL", "http://localhost:8004")
 
 app = FastAPI(title="BFF Mobile", version="1.0.0")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 
 # ============================================

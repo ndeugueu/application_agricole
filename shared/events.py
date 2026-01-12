@@ -3,6 +3,8 @@ Event-driven architecture utilities for RabbitMQ
 Implements Outbox pattern for reliable event publishing
 """
 import json
+import os
+import time
 import uuid
 from datetime import datetime
 from typing import Dict, Any, Optional, Callable
@@ -35,21 +37,36 @@ class EventPublisher:
 
     def connect(self):
         """Establish connection to RabbitMQ"""
-        try:
-            self.connection = pika.BlockingConnection(
-                pika.URLParameters(self.rabbitmq_url)
-            )
-            self.channel = self.connection.channel()
-            # Declare exchange for domain events
-            self.channel.exchange_declare(
-                exchange='domain_events',
-                exchange_type='topic',
-                durable=True
-            )
-            logger.info("Connected to RabbitMQ", service=self.service_name)
-        except Exception as e:
-            logger.error("Failed to connect to RabbitMQ", error=str(e))
-            raise
+        retries = int(os.getenv("RABBITMQ_CONNECT_RETRIES", "10"))
+        delay_s = float(os.getenv("RABBITMQ_CONNECT_DELAY_SECONDS", "2"))
+        last_error = None
+
+        for attempt in range(1, retries + 1):
+            try:
+                self.connection = pika.BlockingConnection(
+                    pika.URLParameters(self.rabbitmq_url)
+                )
+                self.channel = self.connection.channel()
+                # Declare exchange for domain events
+                self.channel.exchange_declare(
+                    exchange='domain_events',
+                    exchange_type='topic',
+                    durable=True
+                )
+                logger.info("Connected to RabbitMQ", service=self.service_name)
+                return
+            except Exception as e:
+                last_error = e
+                logger.error(
+                    "Failed to connect to RabbitMQ",
+                    error=str(e),
+                    service=self.service_name,
+                    attempt=attempt,
+                    retries=retries,
+                )
+                time.sleep(delay_s)
+
+        raise last_error
 
     def publish_event(
         self,
@@ -114,21 +131,37 @@ class EventConsumer:
 
     def connect(self):
         """Establish connection to RabbitMQ"""
-        try:
-            self.connection = pika.BlockingConnection(
-                pika.URLParameters(self.rabbitmq_url)
-            )
-            self.channel = self.connection.channel()
-            self.channel.exchange_declare(
-                exchange='domain_events',
-                exchange_type='topic',
-                durable=True
-            )
-            self.channel.queue_declare(queue=self.queue_name, durable=True)
-            logger.info("Event consumer connected", service=self.service_name, queue=self.queue_name)
-        except Exception as e:
-            logger.error("Failed to connect event consumer", error=str(e))
-            raise
+        retries = int(os.getenv("RABBITMQ_CONNECT_RETRIES", "10"))
+        delay_s = float(os.getenv("RABBITMQ_CONNECT_DELAY_SECONDS", "2"))
+        last_error = None
+
+        for attempt in range(1, retries + 1):
+            try:
+                self.connection = pika.BlockingConnection(
+                    pika.URLParameters(self.rabbitmq_url)
+                )
+                self.channel = self.connection.channel()
+                self.channel.exchange_declare(
+                    exchange='domain_events',
+                    exchange_type='topic',
+                    durable=True
+                )
+                self.channel.queue_declare(queue=self.queue_name, durable=True)
+                logger.info("Event consumer connected", service=self.service_name, queue=self.queue_name)
+                return
+            except Exception as e:
+                last_error = e
+                logger.error(
+                    "Failed to connect event consumer",
+                    error=str(e),
+                    service=self.service_name,
+                    queue=self.queue_name,
+                    attempt=attempt,
+                    retries=retries,
+                )
+                time.sleep(delay_s)
+
+        raise last_error
 
     def register_handler(self, event_type: str, handler: Callable):
         """Register a handler for a specific event type"""

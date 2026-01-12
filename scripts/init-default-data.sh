@@ -5,15 +5,21 @@
 set -e
 
 BASE_URL="${BASE_URL:-http://localhost}"
+ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
+ADMIN_PASSWORD="${ADMIN_PASSWORD:-}"
 echo "🌱 Initialisation des données par défaut"
 echo "=========================================="
 echo ""
 
 # Authentification
 echo "🔐 Authentification en cours..."
+if [ -z "$ADMIN_PASSWORD" ]; then
+    echo "ADMIN_PASSWORD is not set."
+    exit 1
+fi
 LOGIN_RESPONSE=$(curl -s -X POST $BASE_URL/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "Admin@2025"}')
+  -d "{\"username\": \"${ADMIN_USERNAME}\", \"password\": \"${ADMIN_PASSWORD}\"}")
 
 TOKEN=$(echo $LOGIN_RESPONSE | grep -o '"access_token":"[^"]*' | cut -d'"' -f4)
 
@@ -199,7 +205,7 @@ echo "  - 4 produits"
 echo "  - 2 clients"
 echo ""
 echo "🔑 Identifiants de test:"
-echo "  Admin:        admin / Admin@2025"
+echo "  Admin:        admin / ${ADMIN_PASSWORD}"
 echo "  Gestionnaire: gestionnaire / Gestionnaire@2025"
 echo "  Agent:        agent / Agent@2025"
 echo "  Comptable:    comptable / Comptable@2025"

@@ -3,7 +3,6 @@ Farm Service
 Farm structure management: Farms, Plots, Seasons, Crop Types
 """
 from fastapi import FastAPI, Depends, HTTPException, status
-from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
@@ -30,8 +29,9 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_db_engine(DATABASE_URL)
 SessionFactory = get_session_factory(engine)
 
-# Create tables
-Base.metadata.create_all(bind=engine)
+# Create tables (dev only; prefer migrations in prod)
+if os.getenv("AUTO_CREATE_DB", "true").lower() == "true":
+    Base.metadata.create_all(bind=engine)
 
 # Event publisher
 RABBITMQ_URL = os.getenv("RABBITMQ_URL")
@@ -42,15 +42,6 @@ app = FastAPI(
     title="Farm Service",
     description="Farm structure management microservice",
     version="1.0.0"
-)
-
-# CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
 )
 
 

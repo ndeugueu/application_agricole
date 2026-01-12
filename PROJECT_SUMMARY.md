@@ -220,7 +220,7 @@ application_agricole/
 ### 1. Prérequis
 - Docker Desktop installé
 - 8 GB RAM minimum
-- Ports 80, 5432, 5672, 6379, 9000, 9001, 15672 disponibles
+- Ports 80, 5434, 5672, 6380, 9000, 9001, 15672 disponibles
 
 ### 2. Lancement (3 commandes)
 
@@ -241,7 +241,7 @@ docker-compose ps
 # Test de connexion
 curl -X POST http://localhost/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "Admin@2025"}'
+  -d '{"username": "admin", "password": "ADMIN_PASSWORD"}'
 ```
 
 ### 4. Accès

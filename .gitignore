@@ -69,3 +69,4 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
+frontend/node_modules/

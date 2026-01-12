@@ -62,7 +62,7 @@ curl http://localhost/health
 # Se connecter avec l'admin par défaut
 curl -X POST http://localhost/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "Admin@2025"}'
+  -d '{"username": "admin", "password": "ADMIN_PASSWORD"}'
 
 # Vous devriez recevoir un access_token et refresh_token
 ```
@@ -151,7 +151,7 @@ bash scripts/test-api.sh
 
 ### Utilisateur Administrateur
 - **Username** : `admin`
-- **Password** : `Admin@2025`
+- **Password** : `ADMIN_PASSWORD`
 - **Rôle** : Administrateur (accès complet)
 
 ### RabbitMQ Management
@@ -179,7 +179,7 @@ bash scripts/test-api.sh
 | Reporting | 8006 | Rapports PDF/Excel | http://localhost:8006/health |
 | BFF Mobile | 8010 | Backend Mobile | http://localhost:8010/health |
 | BFF Web | 8011 | Backend Web | http://localhost:8011/health |
-| PostgreSQL | 5433 | Base de données | - |
+| PostgreSQL | 5434 | Base de données | - |
 | RabbitMQ | 5672 | Message broker | - |
 | RabbitMQ Mgmt | 15672 | Interface RabbitMQ | http://localhost:15672 |
 | Redis | 6380 | Cache | - |
@@ -325,7 +325,7 @@ docker-compose logs postgres
 ```bash
 curl -X POST http://localhost/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "Admin@2025"}'
+  -d '{"username": "admin", "password": "ADMIN_PASSWORD"}'
 ```
 
 ---
@@ -338,7 +338,7 @@ curl -X POST http://localhost/api/v1/auth/login \
 # 1. S'authentifier
 TOKEN=$(curl -s -X POST http://localhost/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "Admin@2025"}' | grep -o '"access_token":"[^"]*' | cut -d'"' -f4)
+  -d '{"username": "admin", "password": "ADMIN_PASSWORD"}' | grep -o '"access_token":"[^"]*' | cut -d'"' -f4)
 
 # 2. Créer un client
 CUSTOMER=$(curl -s -X POST http://localhost/api/v1/customers \

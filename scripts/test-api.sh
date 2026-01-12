@@ -5,6 +5,8 @@
 set -e
 
 BASE_URL="${BASE_URL:-http://localhost}"
+ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
+ADMIN_PASSWORD="${ADMIN_PASSWORD:-}"
 echo "🧪 Test de l'API Agricole - $BASE_URL"
 echo "=========================================="
 echo ""
@@ -27,9 +29,13 @@ echo ""
 
 # 2. Test d'authentification
 echo "🔐 Test d'authentification..."
+if [ -z "$ADMIN_PASSWORD" ]; then
+    echo "ADMIN_PASSWORD is not set."
+    exit 1
+fi
 LOGIN_RESPONSE=$(curl -s -X POST $BASE_URL/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "Admin@2025"}')
+  -d "{\"username\": \"${ADMIN_USERNAME}\", \"password\": \"${ADMIN_PASSWORD}\"}")
 
 TOKEN=$(echo $LOGIN_RESPONSE | grep -o '"access_token":"[^"]*' | cut -d'"' -f4)
 
