@@ -303,10 +303,10 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=http://51.77.150.48
+        - NEXT_PUBLIC_API_URL=https://51.77.150.48
     container_name: agricole_frontend
     environment:
-      - NEXT_PUBLIC_API_URL=http://51.77.150.48
+      - NEXT_PUBLIC_API_URL=https://51.77.150.48
     depends_on:
       - gateway
     ports:
